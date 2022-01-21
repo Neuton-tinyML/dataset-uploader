@@ -1,0 +1,11 @@
+package "uploader"
+purpose "Tool for upload CSV file MCU"
+version "1.0"
+
+option "interface" i "interface" string optional values="udp","serial" default="serial"
+option "dataset" d "Dataset file" string optional default="./dataset.csv"
+option "listen-port" l "Listen port" int optional default="50000"
+option "send-port" p "Send port" int optional default="50005"
+option "serial-port" s "Serial port device" string optional default="/dev/ttyACM0"
+option "baud-rate" b "Baud rate" int optional values="9600","115200","230400" default="230400"
+option "pause" - "Pause before start" int optional default="0"
