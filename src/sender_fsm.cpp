@@ -11,7 +11,7 @@ uint8_t sender_read_sample(Sender* sender);
 
 static uv_buf_t alloc_buffer(Sender* sender)
 {
-	const size_t size = 4096;
+	const size_t size = sender->sampleSize + sizeof(uint16_t) + sizeof(PacketHeader);
 	uv_buf_t buffer;
 
 	buffer.base = (char*) calloc(1, size);
@@ -45,7 +45,7 @@ static void make_packet(Sender* sender, uv_buf_t* buffer, size_t size, PacketTyp
 
 	if (hdr->size > buffer->len)
 	{
-		fprintf(stderr, "%s: buffer too small\n", __func__);
+		fprintf(stderr, "%s: buffer too small: requested %u actual %zu\n", __func__, hdr->size, buffer->len);
 		sender_finish(sender);
 		return;
 	}
