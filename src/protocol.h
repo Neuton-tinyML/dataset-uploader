@@ -53,16 +53,16 @@ ErrorCode;
 
 typedef struct
 {
-	uint16_t rowsCount;         // Rows count in dataset sample (with BIAS)
-	uint16_t reverseByteOrder;  // Reverse bytes order flag
+	uint16_t columnsCount;         	// Columns count in dataset sample (with BIAS)
+	uint16_t reverseByteOrder;  	// Reverse bytes order flag
 }
 DatasetInfo;
 
 
 typedef struct
 {
-	uint16_t rowsCount;         // Rows count in result
-	uint16_t taskType;          // Task type
+	uint16_t columnsCount;         	// Columns count in result
+	uint16_t taskType;          	// Task type
 }
 ModelInfo;
 

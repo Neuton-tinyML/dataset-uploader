@@ -183,7 +183,7 @@ static void sim_packet(Sender* sender, void** buffer, size_t* size)
 		hdr->size += sizeof(ModelInfo);
 
 		ModelInfo* info = payload;
-		info->rowsCount = 3;
+		info->columnsCount = 3;
 		info->taskType = REGRESSION;
 	}
 	else if (state == STATE_SEND_DATASET_INFO)
@@ -193,10 +193,10 @@ static void sim_packet(Sender* sender, void** buffer, size_t* size)
 	else if (state == STATE_SEND_SAMPLES)
 	{
 		hdr->type = ANS(DATASET_SAMPLE);
-		hdr->size += sizeof(float) * sender->rowsInResult;
+		hdr->size += sizeof(float) * sender->columnsInResult;
 
 		float* result = payload;
-		for (uint32_t i = 0; i < sender->rowsInResult; i++)
+		for (uint32_t i = 0; i < sender->columnsInResult; i++)
 			result[i] = i;
 	}
 	else if (state == STATE_GET_PERFORMANCE_COUNTERS)
@@ -338,11 +338,11 @@ void sender_fsm(Sender* sender,uv_timer_t* timer, void* buffer, size_t size)
 				ModelInfo* mi = (ModelInfo*) payload;
 
 				sender->taskType = mi->taskType;
-				sender->rowsInResult = mi->rowsCount;
+				sender->columnsInResult = mi->columnsCount;
 				fprintf(stderr, "Model info: task type: %u, result columns: %u\n",
-					   sender->taskType, sender->rowsInResult);
+					   sender->taskType, sender->columnsInResult);
 
-				if (sender->rowsInResult == 0)
+				if (sender->columnsInResult == 0)
 				{
 					fprintf(stderr, "%s: invalid columns count\n", __func__);
 					sender_finish(sender);
@@ -372,7 +372,7 @@ void sender_fsm(Sender* sender,uv_timer_t* timer, void* buffer, size_t size)
 	{
 		if (in_packet && PACKET_TYPE(in_packet->type) == TYPE_DATASET_INFO)
 		{
-			fprintf(stderr, "Dataset info: columns in sample: %u\n", sender->rowsInSample);
+			fprintf(stderr, "Dataset info: columns in sample: %u\n", sender->columnsInSample);
 			state_transition(sender, STATE_SEND_SAMPLES);
 			return;
 		}
@@ -387,10 +387,10 @@ void sender_fsm(Sender* sender,uv_timer_t* timer, void* buffer, size_t size)
 		uv_buf_t buf = alloc_buffer(sender);
 
 		DatasetInfo* di = (DatasetInfo*) (buf.base + sizeof(PacketHeader));
-		di->rowsCount = sender->rowsInSample;
+		di->columnsCount = sender->columnsInSample;
 		di->reverseByteOrder = 0;
 
-		fprintf(stderr, ">> Send dataset info: columns in sample: %u\n", di->rowsCount);
+		fprintf(stderr, ">> Send dataset info: columns in sample: %u\n", di->columnsCount);
 
 		make_packet(sender, &buf, sizeof(DatasetInfo), TYPE_DATASET_INFO, ERROR_SUCCESS);
 		send_packet(sender, buf);
@@ -399,38 +399,79 @@ void sender_fsm(Sender* sender,uv_timer_t* timer, void* buffer, size_t size)
 	{
 		if (in_packet && PACKET_TYPE(in_packet->type) == TYPE_DATASET_SAMPLE)
 		{
-			if (in_packet->size >= (sizeof(float) * sender->rowsInResult))
+			if (in_packet->size >= (sizeof(float) * sender->columnsInResult))
 			{
+				static uint8_t hasHeader = 0;
+				
 				if (sender->sampleSent)
 				{
-					sender->retries = 0;
-
 					float* result = (float*) payload;
 
-					float target;
-					if (sender->rowsInResult == 2)
+					if (!hasHeader)
 					{
-						static uint8_t hasHeader = 0;
-						if (!hasHeader)
+						hasHeader = 1;
+						
+						if (sender->taskType == 2)
 						{
-							printf("Predicted class,Probability of 0.000000,Probability of 1.000000\n");
-							hasHeader = 1;
+							if (sender->columnsInResult == 1)
+							{
+								printf("target\n");
+							}
+							else
+							{
+								for (uint16_t i = 0; i < sender->columnsInResult; ++i)
+								{
+									printf("Predicted value for output #%u%s",
+											i + 1, (i + 1) < sender->columnsInResult ? "," : "");
+								}
+								printf("\n");
+							}
 						}
-
-						target = (result[0] >= result[1]) ? 0.0 : 1.0;
-						printf("%.6f,", target);
+						else
+						{
+							printf("target%s", sender->columnsInResult > 1 ? "," : "");
+							for (uint16_t i = 0; i < sender->columnsInResult; ++i)
+							{
+								printf("Probability of %d%s",
+										i, (i + 1) < sender->columnsInResult ? "," : "");
+							}
+							printf("\n");
+						}
 					}
 
-					for (uint32_t i = 0; i < sender->rowsInResult; i++)
-						printf("%.6f%s", result[i], (i+1) < sender->rowsInResult ? "," : "");
-					printf("\n");
-
-					if (0 == sender_read_sample(sender))
+					if (sender->taskType < 2)
 					{
-						fprintf(stderr, "================\n");
-						state_transition(sender, STATE_GET_PERFORMANCE_COUNTERS);
-						return;
+						uint32_t index = 0;
+						float max = 0;
+						for (uint32_t i = 0; i < sender->columnsInResult; i++)
+						{
+							if (max < result[i])
+							{
+								index = i;
+								max = result[i];
+							}
+						}
+							
+						printf("%u,", index);
 					}
+
+					for (uint32_t i = 0; i < sender->columnsInResult; i++)
+						printf("%.6f%s", result[i], (i+1) < sender->columnsInResult ? "," : "");
+					printf("\n");
+				}
+			}
+			
+			sender->retries = 0;
+			if (sender->sampleSent)
+			{
+				// static size_t nSamples = 1;
+				// fprintf(stderr, ">> Send dataset sample: #%zu\n", nSamples++);
+
+				if (0 == sender_read_sample(sender))
+				{
+					fprintf(stderr, "================\n");
+					state_transition(sender, STATE_GET_PERFORMANCE_COUNTERS);
+					return;
 				}
 			}
 		}

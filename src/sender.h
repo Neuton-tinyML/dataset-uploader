@@ -37,8 +37,8 @@ typedef struct
 
 	SimpleCsvReader *csvReader;
 
-	uint32_t rowsInSample;
-	uint32_t rowsInResult;
+	uint32_t columnsInSample;
+	uint32_t columnsInResult;
 	uint32_t taskType;
 
 	uint32_t isUdp;

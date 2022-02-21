@@ -176,9 +176,9 @@ Sender* sender_create(uint8_t isUdp, const char* dataset, int bindPort, int send
 		return NULL;
 	}
 
-	sender->rowsInSample = header.size() + 1;
-	sender->sampleSize = (sender->rowsInSample) * sizeof(float);
-	sender->sample = (float*) calloc(sender->rowsInSample, sizeof(float));
+	sender->columnsInSample = header.size() + 1;
+	sender->sampleSize = (sender->columnsInSample) * sizeof(float);
+	sender->sample = (float*) calloc(sender->columnsInSample, sizeof(float));
 	if (!sender->sample)
 	{
 		fprintf(stderr, "Failed to alloc sample buffer\n");
@@ -246,7 +246,7 @@ uint8_t sender_read_sample(Sender* sender)
 	if (values.size() == 0)
 		return 0;
 
-	if (sender->rowsInSample != (values.size() + 1))
+	if (sender->columnsInSample != (values.size() + 1))
 	{
 		fprintf(stderr, "%s: failed to read sample\n", __func__);
 		return 0;
