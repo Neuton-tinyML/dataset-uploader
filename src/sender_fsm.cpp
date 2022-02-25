@@ -541,7 +541,7 @@ void sender_fsm(Sender* sender,uv_timer_t* timer, void* buffer, size_t size)
 
 		uv_buf_t buf = alloc_buffer(sender);
 
-		fprintf(stderr, ">> Request performace report\n");
+		fprintf(stderr, ">> Request performance report\n");
 
 		make_packet(sender, &buf, 0, TYPE_PERF_REPORT, ERROR_SUCCESS);
 		send_packet(sender, buf);
